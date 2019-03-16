@@ -14,7 +14,7 @@
   "scripts": {
     "dev": "NODE_ENV=dev node-dev index.js",
     "lint": "eslint index.js src/ test/ --fix",
-    "push": "git push --follow-tags origin master",
+    "push": "git push --follow-tags origin master && npm publish",
     "rls": "standard-version --release-as",
     "start": "NODE_ENV=production node index.js",
     "test": "mocha",
