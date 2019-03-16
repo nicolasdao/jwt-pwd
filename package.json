@@ -5,12 +5,12 @@
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nicolasdao/jwt-password-helper.git"
+    "url": "https://github.com/nicolasdao/jwt-pwd.git"
   },
   "bugs": {
-    "url": "https://github.com/nicolasdao/jwt-password-helper/issues"
+    "url": "https://github.com/nicolasdao/jwt-pwd/issues"
   },
-  "homepage": "https://github.com/nicolasdao/jwt-password-helper#readme",
+  "homepage": "https://github.com/nicolasdao/jwt-pwd#readme",
   "scripts": {
     "dev": "NODE_ENV=dev node-dev index.js",
     "lint": "eslint index.js src/ test/ --fix",
