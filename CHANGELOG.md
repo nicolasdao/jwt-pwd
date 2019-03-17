@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.1.1"></a>
+## [0.1.1](https://github.com/nicolasdao/jwt-pwd/compare/v0.1.0...v0.1.1) (2019-03-17)
+
+
+### Bug Fixes
+
+* JWT token with missing bearer token are valid ([3955d19](https://github.com/nicolasdao/jwt-pwd/commit/3955d19))
+
+
+
 <a name="0.1.0"></a>
 # [0.1.0](https://github.com/nicolasdao/jwt-pwd/compare/v0.0.3...v0.1.0) (2019-03-17)
 
