@@ -7,6 +7,8 @@ __*jwt-pwd*__ is a tiny encryption helper that manages JWT (JSON Web Token) toke
 > * [How To Use It](#how-to-use-it) 
 > 	- [Generate & Validate a JWT Token](#generate--validate-a-jwt-token) 
 > 	- [Encrypt & Validate Passwords](#encrypt--validate-passwords) 
+> 	- [Authorizing HTTP Request With a JWT Token (Express)](#authorizing-http-request-with-a-jwt-token-express) 
+> 	- [Other Utils](#other-utils) 
 > * [FAQ](#faq) 
 > 	- [How to generate an App Secret?](#how-to-generate-an-app-secret) 
 > * [About Neap](#this-is-what-we-re-up-to)
@@ -23,7 +25,7 @@ npm i jwt-pwd
 
 ```js
 const Encryption = require('jwt-pwd')
-const { jwt } = new Encryption({ appSecret: 'your-app-secret' })
+const { jwt } = new Encryption({ jwtSecret: 'your-jwt-secret' })
 
 const claims = {
 	id:1,
@@ -48,7 +50,7 @@ jwt.create(claims)
 
 ```js
 const Encryption = require('jwt-pwd')
-const { pwd } = new Encryption({ appSecret: 'your-app-secret' })
+const { pwd } = new Encryption({ pwdSecret: 'your-pwd-secret' })
 
 const password = 'your-super-safe-password'
 const method = 'sha512' // other options: md5, sha1, sha256, sha512, ripemd160
@@ -63,8 +65,54 @@ console.log('Password validation result: ', pwd.validate({ password: '123', encr
 
 ```
 
+> RECOMMENDATION: When using both `jwt` and `pwd`, do not use the same secret!
+
+In theory, you could do one of the following:
+```js
+const { jwt, pwd } = new Encryption({ jwtSecret: 'your-jwt-secret' })
+```
+
+OR
+
+```js
+const { jwt, pwd } = new Encryption({ pwdSecret: 'your-pwd-secret' })
+```
+
+The above is deprecated as it would couple the encryption of the JWT and the password together. If access to one of them needs to be revoked, it won't be possible to revoke it without affecting the other. 
+
+The recommended usage is to generate two different secret as follow:
+
+```js
+const { jwt, pwd } = new Encryption({ jwtSecret: 'your-jwt-secret', pwdSecret: 'your-pwd-secret' })
+```
+
+## Authorizing HTTP Request With a JWT Token (Express)
+
+The following piece of code assume that a JWT token containing claims `{ firstName:'Nic' }` is passed in each request in the header `x-token`(this header key is configurable). If the request is successfully authenticated, a new `user` property is added to the `req` object. That property contains all the claims. If, on the contrary, the request fails the authentication handler, then a 403 code is immediately returned.
+
+```js
+const Encryption = require('jwt-pwd')
+const { bearerHandler } = new Encryption({ jwtSecret: 'your-jwt-secret' })
+
+app.get('/sayhi', bearerHandler({ key: 'x-token' }), (req,res) => res.status(200).send(`${req.user.firstName} says hi.`))
+```
+
+## Other Utils
+### Authorizing HTTP Request With an API Key (Express)
+
+The following piece of code assume that an API key is passed in each request in the header `x-api-key` (this header key is configurable). If the request is successfully authenticated, the rest of the code is executed. If, on the contrary, the request fails the authentication handler, then a 403 code is immediately returned.
+
+```js
+const Encryption = require('jwt-pwd')
+const { apiKeyHandler } = new Encryption({ jwtSecret: 'your-jwt-secret' })
+
+app.get('/sayhello', apiKeyHandler({ key: 'x-api-key', value: 'your-api-key' }), (req,res) => res.status(200).send(`Hello`))
+```
+
+> NOTE: In this case, the `jwtSecret` is not involved in any encryption or validation. The `apiKeyHandler` is just a handy helper.
+
 # FAQ
-## How to generate an App Secret?
+## How to generate a Secret?
 
 There are various way to do it. The quickest way is to use the native NodeJS core library `crypto` as follow:
 
@@ -72,7 +120,7 @@ There are various way to do it. The quickest way is to use the native NodeJS cor
 require('crypto').randomBytes(50).toString('base64')
 ````
 
-Alternatively, there are also website that generate random key such as [https://keygen.io/](https://keygen.io/) or [https://randomkeygen.com/](#https://randomkeygen.com/).
+Alternatively, there are plenty of websites that generate random key such as [https://keygen.io/](https://keygen.io/) or [https://randomkeygen.com/](#https://randomkeygen.com/).
 
 # This Is What We re Up To
 We are Neap, an Australian Technology consultancy powering the startup ecosystem in Sydney. We simply love building Tech and also meeting new people, so don't hesitate to connect with us at [https://neap.co](https://neap.co).

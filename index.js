@@ -97,8 +97,16 @@ const validateData = (data, encryptedData, method, hexSalt1, hexSalt2) => {
 	}
 }
 
-const Encryption = function({ appSecret }) {
-	const APP_PWD_SALT = stringToHexSalt(appSecret, 16)
+const Encryption = function({ jwtSecret, pwdSecret }) {
+	if (!jwtSecret && !pwdSecret)
+		throw new Error('Missing required arguments. At least one of the following arguments must be specified: \'jwtSecret\' or \'pwdSecret\'')
+
+	if (!pwdSecret)
+		pwdSecret = jwtSecret
+	if (!jwtSecret)
+		jwtSecret = pwdSecret
+
+	const APP_PWD_SALT = stringToHexSalt(pwdSecret, 16)
 	
 	this.pwd = {
 		/**
@@ -128,14 +136,14 @@ const Encryption = function({ appSecret }) {
 		}
 	}
 
-	this.jwt = {
+	const _jwt = {
 		/**
 		 * Creates a JWT token
 		 * 
 		 * @param  {Object}  claims Optional, e.g., { id:1, email: 'nic@neap.co' }
 		 * @return {Promise}        Promise resolving to a string.
 		 */
-		create: (claims={}) => new Promise((onSuccess, onFailure) => jwt.sign(claims, appSecret, (err, token) => {
+		create: (claims={}) => new Promise((onSuccess, onFailure) => jwt.sign(claims, jwtSecret, (err, token) => {
 			if (err)
 				onFailure(err)
 			else
@@ -148,13 +156,51 @@ const Encryption = function({ appSecret }) {
 		 * @param  {String} token 
 		 * @return {Promise}      	Promise resolving to a Claims object
 		 */
-		validate: (token='') => new Promise((onSuccess, onFailure) => jwt.verify(token, appSecret, (err, claims) => {
+		validate: (token='') => new Promise((onSuccess, onFailure) => jwt.verify(token, jwtSecret, (err, claims) => {
 			if (err)
 				onFailure(err)
 			else
 				onSuccess(claims)
 		}))
-	} 
+	}
+
+	this.jwt = _jwt
+
+	this.apiKeyHandler = ({ key, value }) => {
+		if (!key)
+			throw new Error('Missing required argument \'key\'')
+		if (!value)
+			throw new Error('Missing required argument \'value\'')
+
+		return (req,res,next) => {
+			const keyValue = (req.headers || {})[key]
+			if (keyValue != value)
+				res.status(403).send(`Unauthorized access. ${keyValue ? `Invalid API key '${key}'.` : `Missing API key. Header '${key}' not found.`}`)
+			next()
+		}
+	}
+
+	this.bearerHandler = ({ key }) => {
+		if (!key)
+			throw new Error('Missing required argument \'key\'')
+		
+		return (req,res,next) => {
+			const keyValue = (req.headers || {})[key]
+			if (!keyValue) {
+				res.status(403).send(`Unauthorized access. Missing bearer token. Header '${key}' not found.`)
+				next()
+			} else {
+				const token = keyValue.trim().replace('bearer ', '')
+				_jwt.validate(token)
+					.catch(err => res.status(403).send(`Unauthorized access. Invalid bearer token. ${err.message}`))
+					.then(user => {
+						if (user)
+							req.user = user 
+						next()
+					})
+			}
+		}
+	}
 
 	return this
 }
