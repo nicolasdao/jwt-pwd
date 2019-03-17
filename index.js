@@ -189,6 +189,9 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 			if (!keyValue) {
 				res.status(403).send(`Unauthorized access. Missing bearer token. Header '${key}' not found.`)
 				next()
+			} else if (!/^bearer\s/.test(keyValue)) {
+				res.status(403).send('Unauthorized access. Malformed bearer token. Missing bearer schema.')
+				next()
 			} else {
 				const token = keyValue.trim().replace('bearer ', '')
 				_jwt.validate(token)
