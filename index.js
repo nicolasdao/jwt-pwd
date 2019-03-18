@@ -180,20 +180,19 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 		}
 	}
 
-	this.bearerHandler = ({ key }) => {
-		if (!key)
-			throw new Error('Missing required argument \'key\'')
-		
+	this.bearerHandler = (options) => {
+		const { key='Authorization' } = options || {}
 		return (req,res,next) => {
-			const keyValue = (req.headers || {})[key]
+			const headers = req.headers || {}
+			const keyValue = key == 'Authorization' ? (headers[key] || headers['authorization']) : headers[key]
 			if (!keyValue) {
 				res.status(403).send(`Unauthorized access. Missing bearer token. Header '${key}' not found.`)
 				next()
-			} else if (!/^bearer\s/.test(keyValue)) {
+			} else if (!/^[bB]earer\s/.test(keyValue)) {
 				res.status(403).send('Unauthorized access. Malformed bearer token. Missing bearer schema.')
 				next()
 			} else {
-				const token = keyValue.trim().replace('bearer ', '')
+				const token = keyValue.trim().replace(/^[bB]earer\s/, '')
 				_jwt.validate(token)
 					.catch(err => res.status(403).send(`Unauthorized access. Invalid bearer token. ${err.message}`))
 					.then(user => {

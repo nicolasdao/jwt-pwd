@@ -160,6 +160,29 @@ describe('Encryption', () => {
 			const user = { id:1, email: 'nic@neap.co' }
 
 			jwt.create(user).then(token => {
+				const req = { headers: { 'Authorization': `bearer ${token}` } }
+				let response = 'OKKKKK'
+				const res = { status: code => ({ send: data => { response = { status:code, data } } }) }
+				
+				const handler = bearerHandler()
+
+				new Promise(next => handler(req,res,next)).then(() => {
+					assert.equal(response, 'OKKKKK', '01')
+					assert.isOk(req.user, '02')
+					assert.equal(req.user.id, user.id, '03')
+					assert.equal(req.user.email, user.email, '04')
+					done()
+				}).catch(done)
+			})
+		})
+		it('02 - Should accept HTTP requests from clients passing the correct bearer token in a custom header.', done => {
+			const jwtSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLqzFM/BME='
+			const pwdSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLcdwcwe4321341qzFM/BME='
+			const { bearerHandler, jwt } = new Encryption({ jwtSecret, pwdSecret })
+			
+			const user = { id:1, email: 'nic@neap.co' }
+
+			jwt.create(user).then(token => {
 				const tokenKey = 'x-bearer-key'
 				const req = { headers: { 'x-bearer-key': `bearer ${token}` } }
 				let response = 'OKKKKK'
@@ -176,7 +199,7 @@ describe('Encryption', () => {
 				}).catch(done)
 			})
 		})
-		it('02 - Should refuse HTTP requests from clients passing the incorrect bearer token.', done => {
+		it('03 - Should refuse HTTP requests from clients passing the incorrect bearer token.', done => {
 			const jwtSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLqzFM/BME='
 			const pwdSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLcdwcwe4321341qzFM/BME='
 			const { bearerHandler, jwt } = new Encryption({ jwtSecret, pwdSecret })
@@ -199,7 +222,7 @@ describe('Encryption', () => {
 				}).catch(done)
 			})
 		})
-		it('03 - Should refuse HTTP requests from clients missing an bearer token.', done => {
+		it('04 - Should refuse HTTP requests from clients missing an bearer token.', done => {
 			const jwtSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLqzFM/BME='
 			const pwdSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLcdwcwe4321341qzFM/BME='
 			const { bearerHandler, jwt } = new Encryption({ jwtSecret, pwdSecret })
@@ -222,7 +245,7 @@ describe('Encryption', () => {
 				}).catch(done)
 			})
 		})
-		it('04 - Should refuse HTTP requests from clients with invalid bearer token.', done => {
+		it('05 - Should refuse HTTP requests from clients with invalid bearer token.', done => {
 			const jwtSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLqzFM/BME='
 			const jwtSecret2 = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLqzFde2d2d2/BME='
 			const pwdSecret2 = 'EMsBfLSNzxcxce3f32f2OxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLqzFde2d2d2/BME='

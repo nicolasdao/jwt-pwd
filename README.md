@@ -88,13 +88,13 @@ const { jwt, pwd } = new Encryption({ jwtSecret: 'your-jwt-secret', pwdSecret: '
 
 ## Authorizing HTTP Request With a JWT Token (Express)
 
-The following piece of code assume that a JWT token containing claims `{ firstName:'Nic' }` is passed in each request in the header `x-token`(this header key is configurable). If the request is successfully authenticated, a new `user` property is added to the `req` object. That property contains all the claims. If, on the contrary, the request fails the authentication handler, then a 403 code is immediately returned.
+The following piece of code assume that a JWT token containing claims `{ firstName:'Nic' }` is passed in each request in the `Authorization` header. If the request is successfully authenticated, a new `user` property is added to the `req` object. That property contains all the claims. If, on the contrary, the request fails the authentication handler, then a 403 code is immediately returned.
 
 ```js
 const Encryption = require('jwt-pwd')
 const { bearerHandler } = new Encryption({ jwtSecret: 'your-jwt-secret' })
 
-app.get('/sayhi', bearerHandler({ key: 'x-token' }), (req,res) => res.status(200).send(`${req.user.firstName} says hi.`))
+app.get('/sayhi', bearerHandler(), (req,res) => res.status(200).send(`${req.user.firstName} says hi.`))
 ```
 
 ## Other Utils
