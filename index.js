@@ -195,9 +195,9 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 				const token = keyValue.trim().replace(/^[bB]earer\s/, '')
 				_jwt.validate(token)
 					.catch(err => res.status(403).send(`Unauthorized access. Invalid bearer token. ${err.message}`))
-					.then(user => {
-						if (user)
-							req.user = user 
+					.then(claims => {
+						if (claims)
+							req.claims = claims 
 						next()
 					})
 			}

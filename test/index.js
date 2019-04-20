@@ -168,9 +168,9 @@ describe('Encryption', () => {
 
 				new Promise(next => handler(req,res,next)).then(() => {
 					assert.equal(response, 'OKKKKK', '01')
-					assert.isOk(req.user, '02')
-					assert.equal(req.user.id, user.id, '03')
-					assert.equal(req.user.email, user.email, '04')
+					assert.isOk(req.claims, '02')
+					assert.equal(req.claims.id, user.id, '03')
+					assert.equal(req.claims.email, user.email, '04')
 					done()
 				}).catch(done)
 			})
@@ -192,9 +192,9 @@ describe('Encryption', () => {
 
 				new Promise(next => handler(req,res,next)).then(() => {
 					assert.equal(response, 'OKKKKK', '01')
-					assert.isOk(req.user, '02')
-					assert.equal(req.user.id, user.id, '03')
-					assert.equal(req.user.email, user.email, '04')
+					assert.isOk(req.claims, '02')
+					assert.equal(req.claims.id, user.id, '03')
+					assert.equal(req.claims.email, user.email, '04')
 					done()
 				}).catch(done)
 			})
@@ -216,7 +216,7 @@ describe('Encryption', () => {
 
 				new Promise(next => handler(req,res,next)).then(() => {
 					assert.equal(response.status, 403, '01')
-					assert.isNotOk(req.user, '02')
+					assert.isNotOk(req.claims, '02')
 					assert.equal(response.data, 'Unauthorized access. Malformed bearer token. Missing bearer schema.', '03')
 					done()
 				}).catch(done)
@@ -239,7 +239,7 @@ describe('Encryption', () => {
 
 				new Promise(next => handler(req,res,next)).then(() => {
 					assert.equal(response.status, 403, '01')
-					assert.isNotOk(req.user, '02')
+					assert.isNotOk(req.claims, '02')
 					assert.equal(response.data, 'Unauthorized access. Missing bearer token. Header \'x-bearer-key\' not found.', '03')
 					done()
 				}).catch(done)
@@ -264,7 +264,7 @@ describe('Encryption', () => {
 
 				new Promise(next => handler(req,res,next)).then(() => {
 					assert.equal(response.status, 403, '01')
-					assert.isNotOk(req.user, '02')
+					assert.isNotOk(req.claims, '02')
 					assert.equal(response.data, 'Unauthorized access. Invalid bearer token. invalid signature', '03')
 					done()
 				}).catch(done)

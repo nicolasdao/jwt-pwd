@@ -94,7 +94,7 @@ The following piece of code assume that a JWT token containing claims `{ firstNa
 const Encryption = require('jwt-pwd')
 const { bearerHandler } = new Encryption({ jwtSecret: 'your-jwt-secret' })
 
-app.get('/sayhi', bearerHandler(), (req,res) => res.status(200).send(`${req.user.firstName} says hi.`))
+app.get('/sayhi', bearerHandler(), (req,res) => res.status(200).send(`${req.claims.firstName} says hi.`))
 ```
 
 ## Other Utils
