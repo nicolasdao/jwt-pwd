@@ -10,7 +10,7 @@ __*jwt-pwd*__ is a tiny encryption helper that manages JWT (JSON Web Token) toke
 > 	- [Authorizing HTTP Request With a JWT Token (Express)](#authorizing-http-request-with-a-jwt-token-express) 
 > 	- [Other Utils](#other-utils) 
 > * [FAQ](#faq) 
-> 	- [How to generate an App Secret?](#how-to-generate-an-app-secret) 
+> 	- [How to generate an App Secret?](#how-to-generate-a-secret) 
 > * [About Neap](#this-is-what-we-re-up-to)
 > * [License](#license)
 
