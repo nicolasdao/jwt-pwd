@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.3.0"></a>
+# [0.3.0](https://github.com/nicolasdao/jwt-pwd/compare/v0.2.1...v0.3.0) (2019-04-22)
+
+
+### Features
+
+* Add support for cookie and query to transport tokens in the bearerHandler ([34fa297](https://github.com/nicolasdao/jwt-pwd/commit/34fa297))
+
+
+
 <a name="0.2.1"></a>
 ## [0.2.1](https://github.com/nicolasdao/jwt-pwd/compare/v0.2.0...v0.2.1) (2019-04-20)
 
