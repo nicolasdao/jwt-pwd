@@ -270,6 +270,52 @@ describe('Encryption', () => {
 				}).catch(done)
 			})
 		})
+		it('06 - Should accept HTTP requests from clients passing the correct bearer token in a cookie.', done => {
+			const jwtSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLqzFM/BME='
+			const pwdSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLcdwcwe4321341qzFM/BME='
+			const { bearerHandler, jwt } = new Encryption({ jwtSecret, pwdSecret })
+			
+			const user = { id:1, email: 'nic@neap.co' }
+
+			jwt.create(user).then(token => {
+				const req = { headers: { 'cookie': `hello=${token}` } }
+				let response = 'OKKKKK'
+				const res = { status: code => ({ send: data => { response = { status:code, data } } }) }
+				
+				const handler = bearerHandler({ cookie:'hello' })
+
+				new Promise(next => handler(req,res,next)).then(() => {
+					assert.equal(response, 'OKKKKK', '01')
+					assert.isOk(req.claims, '02')
+					assert.equal(req.claims.id, user.id, '03')
+					assert.equal(req.claims.email, user.email, '04')
+					done()
+				}).catch(done)
+			})
+		})
+		it('07 - Should accept HTTP requests from clients passing the correct bearer token in a query parameter.', done => {
+			const jwtSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLqzFM/BME='
+			const pwdSecret = 'EMsBfLSNzxcxOxtUeBaaDhTJmBbkLqU247WfcWtX9LPdoaXzHI2YJYhkjRLcdwcwe4321341qzFM/BME='
+			const { bearerHandler, jwt } = new Encryption({ jwtSecret, pwdSecret })
+			
+			const user = { id:1, email: 'nic@neap.co' }
+
+			jwt.create(user).then(token => {
+				const req = { url:`https://neap.co/oauth2/token?code=${token}` }
+				let response = 'OKKKKK'
+				const res = { status: code => ({ send: data => { response = { status:code, data } } }) }
+				
+				const handler = bearerHandler({ query:'code' })
+
+				new Promise(next => handler(req,res,next)).then(() => {
+					assert.equal(response, 'OKKKKK', '01')
+					assert.isOk(req.claims, '02')
+					assert.equal(req.claims.id, user.id, '03')
+					assert.equal(req.claims.email, user.email, '04')
+					done()
+				}).catch(done)
+			})
+		})
 	})
 })
 

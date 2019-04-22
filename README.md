@@ -11,6 +11,7 @@ __*jwt-pwd*__ is a tiny encryption helper that manages JWT (JSON Web Token) toke
 > 	- [Other Utils](#other-utils) 
 > * [FAQ](#faq) 
 > 	- [How to generate an App Secret?](#how-to-generate-a-secret) 
+>	- [Why bearer tokens stored in cookies are not prefixed with bearer?](#why-bearer-tokens-stored-in-cookies-are-not-prefixed-with-bearer)
 > * [About Neap](#this-is-what-we-re-up-to)
 > * [License](#license)
 
@@ -88,7 +89,7 @@ const { jwt, pwd } = new Encryption({ jwtSecret: 'your-jwt-secret', pwdSecret: '
 
 ## Authorizing HTTP Request With a JWT Token (Express)
 
-The following piece of code assume that a JWT token containing claims `{ firstName:'Nic' }` is passed in each request in the `Authorization` header. If the request is successfully authenticated, a new `user` property is added to the `req` object. That property contains all the claims. If, on the contrary, the request fails the authentication handler, then a 403 code is immediately returned.
+The following piece of code assume that a JWT token containing claims `{ firstName:'Nic' }` is passed to each request in the `Authorization` header. If the request is successfully authenticated, a new `claims` property is added to the `req` object. That property contains all the claims. If, on the contrary, the request fails the authentication handler, then a 403 code is immediately returned.
 
 ```js
 const Encryption = require('jwt-pwd')
@@ -96,6 +97,13 @@ const { bearerHandler } = new Encryption({ jwtSecret: 'your-jwt-secret' })
 
 app.get('/sayhi', bearerHandler(), (req,res) => res.status(200).send(`${req.claims.firstName} says hi.`))
 ```
+
+#### bearerHandler(options)
+
+* `options` `<Object>`
+	- `key` 	`<String>` 	Default is 'Authorization'. This is the request's header that's supposed to contain the bearer token.
+	- `cookie`  `<String>` 	Cookie's name storing the token. If specified, the token can be stored in that cookie.
+	- `query`   `<String>` 	Query parameter's name storing the token. If specified, the token can be stored the request's query parameter (e.g., if query equals `code`, then the token can be passed using URL [https://neap.co/oauth2/token?code=32133213213123213](https://neap.co/oauth2/token?code=32133213213123213)).
 
 ## Other Utils
 ### Authorizing HTTP Request With an API Key (Express)
@@ -121,6 +129,10 @@ require('crypto').randomBytes(50).toString('base64')
 ````
 
 Alternatively, there are plenty of websites that generate random key such as [https://keygen.io/](https://keygen.io/) or [https://randomkeygen.com/](#https://randomkeygen.com/).
+
+## Why bearer tokens stored in cookies are not prefixed with bearer?
+
+Some libraries (e.g., `axios`) can use the access token stored in a cookie to automatically pass it into the `Authorization` header. When they do so, those libraries may add the `Bearer` prefix automatically. If the token was already prefixed with `Bearer`, the resulting token passed in the `Authorization` headers with be prefixed twice (e.g., `Bearer Bearer ...`) which would break the server side authentication.
 
 # This Is What We re Up To
 We are Neap, an Australian Technology consultancy powering the startup ecosystem in Sydney. We simply love building Tech and also meeting new people, so don't hesitate to connect with us at [https://neap.co](https://neap.co).

@@ -36,6 +36,7 @@
 const hash = require('node_hash')
 const crypto = require('crypto')
 const jwt = require('jsonwebtoken')
+const url = require('url')
 
 const utf8ToHex = s => s ? Buffer.from(s).toString('hex') : ''
 const hexToBuf = h => h ? Buffer.from(h, 'hex') : new Buffer(0)
@@ -94,6 +95,49 @@ const validateData = (data, encryptedData, method, hexSalt1, hexSalt2) => {
 	catch(err) {
 		/*eslint-enable */
 		return false
+	}
+}
+
+const getCookie = (cname,req) => {
+	const cookie = ((req || {}).headers || {}).cookie
+	
+	if (!cname || !cookie)
+		return ''
+
+	const name = cname + '='
+	const decodedCookie = decodeURIComponent(cookie)
+	const ca = decodedCookie.split(';')
+	for(let i = 0; i <ca.length; i++) {
+		let c = ca[i]
+		while (c.charAt(0) == ' ')
+			c = c.substring(1)
+		if (c.indexOf(name) == 0)
+			return c.substring(name.length, c.length)
+	}
+	return ''
+}
+
+const getQuery = (qname,req) => {
+	try {
+		const u = (req||{}).url 
+		if (!qname || !u)
+			return ''
+
+		const { search:querystring } = new url.URL(u)
+		if (!querystring)
+			return ''
+
+		const obj = querystring.replace(/^\?/,'').split('&').reduce((acc,keyValue) => {
+			if (keyValue) {
+				const [key,...values] = keyValue.split('=')
+				const value = decodeURIComponent(values.join('='))
+				acc[key] = value
+			}
+			return acc
+		}, {})
+		return obj[qname] || ''
+	} catch(e) {
+		return (() => '')(e)
 	}
 }
 
@@ -181,18 +225,21 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 	}
 
 	this.bearerHandler = (options) => {
-		const { key='Authorization' } = options || {}
+		const { key='Authorization', cookie, query } = options || {}
 		return (req,res,next) => {
 			const headers = req.headers || {}
 			const keyValue = key == 'Authorization' ? (headers[key] || headers['authorization']) : headers[key]
-			if (!keyValue) {
+			const cookieValue = cookie ? `bearer ${getCookie(cookie, req)}` : ''
+			const queryValue = query ? `bearer ${getQuery(query, req)}` : ''
+			const bearerToken = cookieValue || queryValue ||keyValue
+			if (!bearerToken) {
 				res.status(403).send(`Unauthorized access. Missing bearer token. Header '${key}' not found.`)
 				next()
-			} else if (!/^[bB]earer\s/.test(keyValue)) {
+			} else if (!/^[bB]earer\s/.test(bearerToken)) {
 				res.status(403).send('Unauthorized access. Malformed bearer token. Missing bearer schema.')
 				next()
 			} else {
-				const token = keyValue.trim().replace(/^[bB]earer\s/, '')
+				const token = bearerToken.trim().replace(/^[bB]earer\s/, '')
 				_jwt.validate(token)
 					.catch(err => res.status(403).send(`Unauthorized access. Invalid bearer token. ${err.message}`))
 					.then(claims => {
