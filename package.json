@@ -1,6 +1,6 @@
 {
   "name": "jwt-pwd",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Tiny encryption helper to manage JWT tokens and encrypt and validate passwords using methods such as md5, sha1, sha256, sha512, ripemd160.",
   "main": "index.js",
   "repository": {
