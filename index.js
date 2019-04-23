@@ -98,7 +98,7 @@ const validateData = (data, encryptedData, method, hexSalt1, hexSalt2) => {
 	}
 }
 
-const getCookie = (cname,req) => {
+const getBearerFromCookie = (cname,req) => {
 	const cookie = ((req || {}).headers || {}).cookie
 	
 	if (!cname || !cookie)
@@ -111,13 +111,15 @@ const getCookie = (cname,req) => {
 		let c = ca[i]
 		while (c.charAt(0) == ' ')
 			c = c.substring(1)
-		if (c.indexOf(name) == 0)
-			return c.substring(name.length, c.length)
+		if (c.indexOf(name) == 0) {
+			const v = c.substring(name.length, c.length) 
+			return v ? `Bearer ${v}` : ''
+		}
 	}
 	return ''
 }
 
-const getQuery = (qname,req) => {
+const getBearerFromQuery = (qname,req) => {
 	try {
 		const u = (req||{}).url 
 		if (!qname || !u)
@@ -135,7 +137,8 @@ const getQuery = (qname,req) => {
 			}
 			return acc
 		}, {})
-		return obj[qname] || ''
+		const v = obj[qname] || ''
+		return v ? `Bearer ${v}` : ''
 	} catch(e) {
 		return (() => '')(e)
 	}
@@ -225,23 +228,29 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 	}
 
 	this.bearerHandler = (options) => {
-		const { key='Authorization', cookie, query } = options || {}
+		const { key='Authorization', cookie, query, redirectUrl } = options || {}
 		return (req,res,next) => {
 			const headers = req.headers || {}
 			const keyValue = key == 'Authorization' ? (headers[key] || headers['authorization']) : headers[key]
-			const cookieValue = cookie ? `bearer ${getCookie(cookie, req)}` : ''
-			const queryValue = query ? `bearer ${getQuery(query, req)}` : ''
+			const cookieValue = cookie ? getBearerFromCookie(cookie, req) : ''
+			const queryValue = query ? getBearerFromQuery(query, req) : ''
 			const bearerToken = cookieValue || queryValue ||keyValue
 			if (!bearerToken) {
-				res.status(403).send(`Unauthorized access. Missing bearer token. Header '${key}' not found.`)
+				redirectUrl 
+					? res.redirect(redirectUrl)
+					: res.status(403).send(`Unauthorized access. Missing bearer token. Header '${key}' not found.`)
 				next()
 			} else if (!/^[bB]earer\s/.test(bearerToken)) {
-				res.status(403).send('Unauthorized access. Malformed bearer token. Missing bearer schema.')
+				redirectUrl 
+					? res.redirect(redirectUrl)
+					: res.status(403).send('Unauthorized access. Malformed bearer token. Missing bearer schema.')
 				next()
 			} else {
 				const token = bearerToken.trim().replace(/^[bB]earer\s/, '')
 				_jwt.validate(token)
-					.catch(err => res.status(403).send(`Unauthorized access. Invalid bearer token. ${err.message}`))
+					.catch(err => redirectUrl 
+						? res.redirect(redirectUrl)
+						: res.status(403).send(`Unauthorized access. Invalid bearer token. ${err.message}`))
 					.then(claims => {
 						if (claims)
 							req.claims = claims 
