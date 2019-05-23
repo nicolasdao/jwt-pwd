@@ -38,7 +38,7 @@ jwt.create(claims)
 	.then(token => {
 		console.log(`Your JWT: ${token}`)
 		// 2. Validate JWT
-		return jwt.validate(token)
+		return jwt.validate(token) // validate returns a promise.
 	})
 	.then(validateClaims => {
 		console.log(`User ID: ${validateClaims.id} - User email: ${validateClaims.email}`)
