@@ -1,6 +1,15 @@
-# Change Log
+# Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+### [0.3.3](https://github.com/nicolasdao/jwt-pwd/compare/v0.3.2...v0.3.3) (2019-07-22)
+
+
+### Bug Fixes
+
+* Vulnerability issues reported by npm and github ([7fd4919](https://github.com/nicolasdao/jwt-pwd/commit/7fd4919))
+
+
 
 <a name="0.3.2"></a>
 ## [0.3.2](https://github.com/nicolasdao/jwt-pwd/compare/v0.3.1...v0.3.2) (2019-06-18)
