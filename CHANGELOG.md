@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.3.4](https://github.com/nicolasdao/jwt-pwd/compare/v0.3.3...v0.3.4) (2020-03-18)
+
+
+### Bug Fixes
+
+* 17 of 21 vulnerabilities in 1306 scanned packages ([5f2b9a3](https://github.com/nicolasdao/jwt-pwd/commit/5f2b9a3edee0da077d53fb1eab266175b2073e9a))
+
 ### [0.3.3](https://github.com/nicolasdao/jwt-pwd/compare/v0.3.2...v0.3.3) (2019-07-22)
 
 
