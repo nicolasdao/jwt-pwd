@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.3.5](https://github.com/nicolasdao/jwt-pwd/compare/v0.3.4...v0.3.5) (2020-03-18)
+
+
+### Bug Fixes
+
+* Travis npm deploy ([48beafe](https://github.com/nicolasdao/jwt-pwd/commit/48beafe3b380d05687dcbd568cf5dc74b7c7d331))
+
 ### [0.3.4](https://github.com/nicolasdao/jwt-pwd/compare/v0.3.3...v0.3.4) (2020-03-18)
 
 
