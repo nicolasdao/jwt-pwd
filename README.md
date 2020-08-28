@@ -10,7 +10,7 @@ __*jwt-pwd*__ is a tiny encryption helper that manages JWT (JSON Web Token) toke
 > 	- [Authorizing HTTP Request With a JWT Token (Express)](#authorizing-http-request-with-a-jwt-token-express) 
 > 	- [Other Utils](#other-utils) 
 > * [FAQ](#faq) 
-> 	- [How to generate an App Secret?](#how-to-generate-a-secret) 
+> 	- [How to generate a secret?](#how-to-generate-a-secret) 
 >	- [Why bearer tokens stored in cookies are not prefixed with bearer?](#why-bearer-tokens-stored-in-cookies-are-not-prefixed-with-bearer)
 > * [About Neap](#this-is-what-we-re-up-to)
 > * [License](#license)
@@ -47,7 +47,33 @@ jwt.create(claims)
 
 ```
 
-The default cryptographic algorithm is `RS256` (i.e., RSA SHA256). The supported cryptographic algorithm are listed [here](https://www.npmjs.com/package/jsonwebtoken#algorithms-supported).
+> WARNING: If the algorithm uses assymetric keys, the public key has to be passed as follow to validate the token:
+>	```js
+>	jwt.validate(token, { cert:publicKey })
+>	```
+> To learn more about using private/public keys, please refer to the example in the [Private/public keys for asymmetric algorithm](#privatepublic-keys-for-asymmetric-algorithm) section.
+
+The default cryptographic algorithm is `HS256` (i.e., HMAC with SHA-256). The supported cryptographic algorithm are:
+- `HS256`: HMAC signature with SHA-256 (symmetric key)
+- `HS384`: HMAC signature with SHA-384 (symmetric key)
+- `HS512`: HMAC signature with SHA-512 (symmetric key) 
+- `RS256`: RSA signature with SHA-256 (asymmetric key)
+- `RS384`: RSA signature with SHA-256 (asymmetric key) 
+- `RS512`: RSA signature with SHA-256 (asymmetric key) 
+- `PS256`: RSASSA-PSS signature with SHA-256 (asymmetric key) 
+- `PS384`: RSASSA-PSS signature with SHA-256 (asymmetric key) 
+- `PS512`: RSASSA-PSS signature with SHA-256 (asymmetric key) 
+- `ES256`: ECDSA signature with SHA-256 (asymmetric key) 
+- `ES384`: ECDSA signature with SHA-384 (asymmetric key) 
+- `ES512`: ECDSA signature with SHA-512 (asymmetric key) 
+- `none`: No signature
+
+The key concept you must understand when it comes to choosing one of those algorithms is that they are mainly split in two categories:
+- Asymmetric algorithm: The algorithm is using a private/public key to sign the token. The public key can be shared so the rest of the world can verify that the token has not been tampered. Because the private key is kept secret, there is very little risk of compromising the way the token is signed.
+- Symmetric algorithm: The algorithm is using a single key to sign the token. This means that if a third party wish to verify that the token has not been tampered, the two parties needs to find a safe way to share the single key, which cna be risky. 
+
+Choose a asymmetric algorithm if you must let clients verifying the JWT without your intervention. Once you've choosen which type of algorithm fits your requirements, choosing a specific algorithm depends on the types of keys you can generate. To learn more about generating keys, please refer to the [How to generate a secret?](#how-to-generate-a-secret) section.
+
 
 To change the default algorithm, pass an option parameter as follow:
 
@@ -128,7 +154,11 @@ app.get('/sayhello', apiKeyHandler({ key: 'x-api-key', value: 'your-api-key' }),
 > NOTE: In this case, the `jwtSecret` is not involved in any encryption or validation. The `apiKeyHandler` is just a handy helper.
 
 # FAQ
-## How to generate a Secret?
+## How to generate a secret?
+
+The method to generate a secret depends on your business requirements. If you need to let third parties to verify that your JWT has not been tampered, then you need to use private/public key with an asymmetric algorithm so you can safely share the public key. If on the other hand signing your JWT is a one-way street, you can use a symmetric algorithm and generate a single secret.
+
+### Single key for symmetric algorithm
 
 There are various way to do it. The quickest way is to use the native NodeJS core library `crypto` as follow:
 
@@ -137,6 +167,40 @@ require('crypto').randomBytes(50).toString('base64')
 ````
 
 Alternatively, there are plenty of websites that generate random key such as [https://keygen.io/](https://keygen.io/) or [https://randomkeygen.com/](#https://randomkeygen.com/).
+
+### Private/public keys for asymmetric algorithm
+
+Use OpenSSL to create a `.pem` file containing the private key. In this example, we'll use the ECDSA algorithm to generate a `key.pem` file:
+
+```
+openssl ecparam -genkey -name secp256k1 -noout -out key.pem
+```
+
+> The list of algorithms can for ECDSA can be listed with `openssl ecparam -list_curves`
+
+Then generate a public key for this private key:
+
+```
+openssl ec -in key.pem -pubout > key.pub
+```
+
+To test your keys, use the following snippet:
+
+```js
+const Encryption = require('jwt-pwd')
+const fs = require('fs')
+
+const alg = 'ES256'
+const privateKey = fs.readFileSync('./key.pem').toString()
+const publicKey = fs.readFileSync('./key.pub').toString()
+const { jwt } = new Encryption({ jwtSecret:privateKey })
+const claims = {
+	id:1,
+	email: 'nic@neap.co'
+}
+
+jwt.create(claims, { algorithm:alg }).then(token => jwt.validate(token, { cert:publicKey, algorithms:[alg] })).then(console.log)
+```
 
 ## Why bearer tokens stored in cookies are not prefixed with bearer?
 

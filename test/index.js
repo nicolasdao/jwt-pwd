@@ -8,6 +8,7 @@
 
 const { assert } = require('chai')
 const Encryption = require('../index.js')
+const fs = require('fs')
 
 describe('Encryption', () => {
 	describe('#jwt', () => {
@@ -70,6 +71,27 @@ describe('Encryption', () => {
 				})
 				.catch(err => {
 					assert.equal(err.message, 'invalid signature', '01')
+					done()
+				})
+				.catch(done)
+		})
+		it('04 - Should support asymmetric algorithm.', done => {
+			const alg = 'ES256'
+			const privateKey = fs.readFileSync('./test/key.pem').toString()
+			const publicKey = fs.readFileSync('./test/key.pub').toString()
+			const { jwt } = new Encryption({ jwtSecret:privateKey })
+			const claims = {
+				id:1,
+				email: 'nic@neap.co'
+			}
+
+			jwt.create(claims, { algorithm:alg })
+				.then(token => {
+					return jwt.validate(token, { cert:publicKey, algorithms:['ES256'] })
+				})
+				.then(data => {
+					assert.equal(data.id, claims.id, '01')
+					assert.equal(data.email, claims.email, '02')
 					done()
 				})
 				.catch(done)

@@ -201,15 +201,21 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 		/**
 		 * Verifies whether or not the token is valid based on whether it can be decrypted or not. 
 		 * 
-		 * @param  {String} token 
-		 * @return {Promise}      	Promise resolving to a Claims object
+		 * @param  {String} 	token 
+		 * @param  {[String]}   options.algorithms 
+		 * @return {Promise}    Promise resolving to a Claims object
 		 */
-		validate: (token='') => new Promise((onSuccess, onFailure) => jwt.verify(token, jwtSecret, (err, claims) => {
-			if (err)
-				onFailure(err)
-			else
-				onSuccess(claims)
-		})),
+		validate: (token='', options) => {
+			const { cert:c, algorithms } = options || {}
+			const cert = c || jwtSecret
+			const opts = algorithms ? { algorithms } : {}
+			return new Promise((onSuccess, onFailure) => jwt.verify(token, cert, opts, (err, claims) => {
+				if (err)
+					onFailure(err)
+				else
+					onSuccess(claims)
+			}))
+		},
 
 		/**
 		 * Decodes a JWT. 
