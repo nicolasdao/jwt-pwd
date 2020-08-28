@@ -1,5 +1,5 @@
 # jwt-pwd &middot;  [![NPM](https://img.shields.io/npm/v/jwt-pwd.svg?style=flat)](https://www.npmjs.com/package/jwt-pwd) [![Tests](https://travis-ci.org/nicolasdao/jwt-pwd.svg?branch=master)](https://travis-ci.org/nicolasdao/jwt-pwd) [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Neap](https://neap.co/img/made_by_neap.svg)](#this-is-what-we-re-up-to)
-__*jwt-pwd*__ is a tiny encryption helper that manages JWT (JSON Web Token) tokens and encrypts and validates passwords using methods such as md5, sha1, sha256, sha512, ripemd160. It aims at facilitating the development of token based authentication and authorization APIs (e.g., REST, GraphQL). 
+__*jwt-pwd*__ is a tiny encryption helper that manages JWT (JSON Web Token) tokens and encrypts and validates passwords using methods such as md5, sha1, sha256, sha512, ripemd160. It aims at facilitating the development of token based authentication and authorization APIs (e.g., REST, GraphQL). This package is a wrapper for the [jsonwebtoken package](https://www.npmjs.com/package/jsonwebtoken). 
 
 # Table of Contents
 
@@ -45,6 +45,14 @@ jwt.create(claims)
 	})
 	.catch(err => console.log(`Invalid token: ${err.message}`))
 
+```
+
+The default cryptographic algorithm is `RS256` (i.e., RSA SHA256). The supported cryptographic algorithm are listed [here](https://www.npmjs.com/package/jsonwebtoken#algorithms-supported).
+
+To change the default algorithm, pass an option parameter as follow:
+
+```js
+jwt.create(claims, { algorithm:'HS512' })
 ```
 
 ## Encrypt & Validate Passwords

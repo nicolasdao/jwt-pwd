@@ -187,10 +187,11 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 		/**
 		 * Creates a JWT token
 		 * 
-		 * @param  {Object}  claims Optional, e.g., { id:1, email: 'nic@neap.co' }
-		 * @return {Promise}        Promise resolving to a string.
+		 * @param  {Object}  claims 			Optional, e.g., { id:1, email: 'nic@neap.co' }
+		 * @param  {String}  options.algorithm	Default: 'RS256'. Supported: HS256, HS384, HS512, RS256, RS384, RS512, PS256, PS384, PS512, ES256, ES384, ES512
+		 * @return {Promise}        			Promise resolving to a string.
 		 */
-		create: (claims={}) => new Promise((onSuccess, onFailure) => jwt.sign(claims, jwtSecret, (err, token) => {
+		create: (claims={}, options) => new Promise((onSuccess, onFailure) => jwt.sign(claims, jwtSecret, options, (err, token) => {
 			if (err)
 				onFailure(err)
 			else
@@ -208,7 +209,16 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 				onFailure(err)
 			else
 				onSuccess(claims)
-		}))
+		})),
+
+		/**
+		 * Decodes a JWT. 
+		 * 
+		 * @param  {String}  token
+		 * @param  {Boolean} options.complete	Default false. When set to true, the decoding includes the header and the signature. 		
+		 * @return {Object}
+		 */
+		decode: (token, options) => jwt.decode(token, options)
 	}
 
 	this.jwt = _jwt

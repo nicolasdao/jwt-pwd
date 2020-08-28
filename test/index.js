@@ -62,7 +62,9 @@ describe('Encryption', () => {
 			}
 
 			Promise.all([jwt.create(claims), jwt2.create(claims)])
-				.then(([,token]) => jwt.validate(token))
+				.then(([,token]) => {
+					return jwt.validate(token)
+				})
 				.then(() => {
 					throw new Error('Should have failed')
 				})
