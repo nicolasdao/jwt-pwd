@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.0.0](https://github.com/nicolasdao/jwt-pwd/compare/v0.4.1...v1.0.0) (2020-08-29)
+
+
+### Features
+
+* Add support for encryption using AES or DES. Correct the doc which was containing misleading information regarding hashing, salting and encryption ([d5712e0](https://github.com/nicolasdao/jwt-pwd/commit/d5712e0d2d13d9dedaf7dbc94f6ffc0275a8824a))
+
 ### [0.4.1](https://github.com/nicolasdao/jwt-pwd/compare/v0.4.0...v0.4.1) (2020-08-28)
 
 ## [0.4.0](https://github.com/nicolasdao/jwt-pwd/compare/v0.3.6...v0.4.0) (2020-08-28)
