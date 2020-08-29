@@ -1,12 +1,15 @@
 # jwt-pwd &middot;  [![NPM](https://img.shields.io/npm/v/jwt-pwd.svg?style=flat)](https://www.npmjs.com/package/jwt-pwd) [![Tests](https://travis-ci.org/nicolasdao/jwt-pwd.svg?branch=master)](https://travis-ci.org/nicolasdao/jwt-pwd) [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Neap](https://neap.co/img/made_by_neap.svg)](#this-is-what-we-re-up-to)
-__*jwt-pwd*__ is a tiny encryption helper that manages JWT (JSON Web Token) tokens and encrypts and validates passwords using methods such as md5, sha1, sha256, sha512, ripemd160. It aims at facilitating the development of token based authentication and authorization APIs (e.g., REST, GraphQL). This package is a wrapper for the [jsonwebtoken package](https://www.npmjs.com/package/jsonwebtoken). 
+__*jwt-pwd*__ is a tiny crypto helper that helps building JWT (JSON Web Token, pronounced _jot_), hashing/salting and validating passwords using methods such as md5, sha1, sha256, sha512, ripemd160 and finally encrypt data using either AES or triple DES. It aims at facilitating the development of token based authentication and authorization APIs (e.g., REST, GraphQL). This package wraps the [jsonwebtoken package](https://www.npmjs.com/package/jsonwebtoken), the native NodeJS `crypto` package and the [node_hash package](https://www.npmjs.com/package/node_hash). 
 
 # Table of Contents
 
 > * [Install](#install) 
-> * [How To Use It](#how-to-use-it) 
-> 	- [Generate & Validate a JWT Token](#generate--validate-a-jwt-token) 
-> 	- [Encrypt & Validate Passwords](#encrypt--validate-passwords) 
+> * [Getting started](#getting-started) 
+> 	- [Generating & validating JWTs](#generating--validating-a-jwts) 
+> 	- [Hashing and salting password](#hashing-and-salting-password) 
+>	- [Encrypting data](#encrypting-data)
+>		- [AES (recommended)](#aes-recommended)
+>		- [Triple DES](#triple-des)
 > 	- [Authorizing HTTP Request With a JWT Token (Express)](#authorizing-http-request-with-a-jwt-token-express) 
 > 	- [Other Utils](#other-utils) 
 > * [FAQ](#faq) 
@@ -21,12 +24,15 @@ __*jwt-pwd*__ is a tiny encryption helper that manages JWT (JSON Web Token) toke
 npm i jwt-pwd
 ```
 
-# How To Use It
-## Generate & Validate a JWT Token
+# Getting started
+## Generating & validating JWTs
 
 ```js
-const Encryption = require('jwt-pwd')
-const { jwt } = new Encryption({ jwtSecret: 'your-jwt-secret' })
+const Crypto = require('jwt-pwd')
+const { jwt } = new Crypto({ secret: 'your-jwt-secret' })
+// Or you can also user
+// const { jwt } = new Crypto()
+// jwt.setKey('your-jwt-secret')
 
 const claims = {
 	id:1,
@@ -49,12 +55,18 @@ jwt.create(claims)
 
 > WARNING: If the algorithm uses assymetric keys, the public key has to be passed as follow to validate the token:
 >	```js
->	jwt.validate(token, { cert:publicKey })
+>	jwt.validate(token, { key:publicKey })
 >	```
-> To learn more about using private/public keys, please refer to the example in the [Private/public keys for asymmetric algorithm](#privatepublic-keys-for-asymmetric-algorithm) section.
+> To learn more about using private/public keys, please refer to the example in the [Private/public keys for asymmetric algorithms](#privatepublic-keys-for-asymmetric-algorithms) section.
 
-The default cryptographic algorithm is `HS256` (i.e., HMAC with SHA-256). The supported cryptographic algorithm are:
-- `HS256`: HMAC signature with SHA-256 (symmetric key)
+To change the default algorithm, pass an option parameter as follow:
+
+```js
+jwt.create(claims, { algorithm:'HS512' })
+```
+
+The supported cryptographic algorithms are:
+- `HS256` (default): HMAC signature with SHA-256 (symmetric key)
 - `HS384`: HMAC signature with SHA-384 (symmetric key)
 - `HS512`: HMAC signature with SHA-512 (symmetric key) 
 - `RS256`: RSA signature with SHA-256 (asymmetric key)
@@ -69,56 +81,93 @@ The default cryptographic algorithm is `HS256` (i.e., HMAC with SHA-256). The su
 - `none`: No signature
 
 The key concept you must understand when it comes to choosing one of those algorithms is that they are mainly split in two categories:
-- Asymmetric algorithm: The algorithm is using a private/public key to sign the token. The public key can be shared so the rest of the world can verify that the token has not been tampered. Because the private key is kept secret, there is very little risk of compromising the way the token is signed.
-- Symmetric algorithm: The algorithm is using a single key to sign the token. This means that if a third party wish to verify that the token has not been tampered, the two parties needs to find a safe way to share the single key, which cna be risky. 
+- __Asymmetric algorithm__: The algorithm is using a private/public key to sign the token. The public key can be shared with the rest of the world so it can verify that the token has not been tampered. Because the private key is kept secret, there is very little risk of compromising the way the token's integrity .
+- __Symmetric algorithm__: The algorithm is using a single key to sign the token. This means that if a third-party wishes to verify that the token has not been tampered, the two parties need to find a safe way to share the single key, which can adds complexity. 
 
-Choose a asymmetric algorithm if you must let clients verifying the JWT without your intervention. Once you've choosen which type of algorithm fits your requirements, choosing a specific algorithm depends on the types of keys you can generate. To learn more about generating keys, please refer to the [How to generate a secret?](#how-to-generate-a-secret) section.
+Choose an asymmetric algorithm if you must let clients verifying the JWT without your intervention, othersise choose a symmetric algorithm as they are simpler to start with. Once you've choosen which type of algorithm fits your requirements, choosing a specific algorithm depends on the types of signature your ecosystem supports. If the JWT travels throughout multiple existing systems that must verify its integrity, then do some research on those systems to see what is the most secured common denominator between all those systems (i.e., the most secured assymetric algorithm they all support), and then choose that one. If you are not constrained by third-party systems, and still need an asymmetric algorithm, _ES256_ is a good compromise between security and adoption. To learn more about generating keys, please refer to the [How to generate a secret?](#how-to-generate-a-secret) section.
 
+## Hashing and salting password
 
-To change the default algorithm, pass an option parameter as follow:
-
-```js
-jwt.create(claims, { algorithm:'HS512' })
-```
-
-## Encrypt & Validate Passwords
+> IMPORTANT: Hashing and salting is not the same as encrypting. Please refer to the Auth0 article [Adding Salt to Hashing: A Better Way to Store Passwords](https://auth0.com/blog/adding-salt-to-hashing-a-better-way-to-store-passwords/) to learn more. If you want to encrypt data, please jump to the [Encrypting data](#encrypting-data) section.
 
 ```js
-const Encryption = require('jwt-pwd')
-const { pwd } = new Encryption({ pwdSecret: 'your-pwd-secret' })
+const Crypto = require('jwt-pwd')
+const { pwd } = new Crypto()
 
 const password = 'your-super-safe-password'
-const method = 'sha512' // other options: md5, sha1, sha256, sha512, ripemd160
+const alg = 'sha512' // other options: md5, sha1, sha256, sha512, ripemd160
 
-// 1. Encrypt
-const { salt, encryptedPassword } = pwd.encrypt({ password, method })
-console.log(`Encrypted password: ${encryptedPassword} - Salt: ${salt}`)
+// 1. Hash and salt
+const { salt, hashedSaltedPassword } = pwd.hashAndSalt({ password, alg })
+console.log(`Encrypted password: ${hashedSaltedPassword} - Salt: ${salt}`)
 
 // 2. Validate
-console.log('Password validation result: ', pwd.validate({ password, encryptedPassword, salt, method })) 
-console.log('Password validation result: ', pwd.validate({ password: '123', encryptedPassword, salt, method }))
+console.log('Password validation result: ', pwd.validate({ password, hashedSaltedPassword, salt, alg })) 
+console.log('Password validation result: ', pwd.validate({ password: '123', hashedSaltedPassword, salt, alg }))
 
 ```
 
-> RECOMMENDATION: When using both `jwt` and `pwd`, do not use the same secret!
+## Encrypting data
+### AES (recommended)
 
-In theory, you could do one of the following:
 ```js
-const { jwt, pwd } = new Encryption({ jwtSecret: 'your-jwt-secret' })
+const Crypto = require('jwt-pwd')
+const { encryption } = new Crypto()
+
+const data = { firstName:'Nic', secret:1234 }
+
+const encryptionKey = encryption.aes.setKey()
+const initializationVector = encryption.aes.setIv()
+
+console.log({
+	encryptionKey,
+	initializationVector
+})
+
+const { cipher, encrypted } = encryption.aes.encrypt(JSON.stringify(data))
+
+console.log({ cipher, encrypted })
+
+const decryptedData= JSON.parse(encryption.aes.decrypt(encrypted))
+
+console.log(decryptedData)
 ```
 
-OR
+Notice that the AES needs an `encryptionKey` and an `initializationVector` to function properly. Those variables must fits certain criteria based on the type of cipher used. 
+
+The following snippet shows how to use your own key and iv:
 
 ```js
-const { jwt, pwd } = new Encryption({ pwdSecret: 'your-pwd-secret' })
+const Crypto = require('jwt-pwd')
+const { encryption } = new Crypto()
+
+encryption.aes.setKey(process.env.ENCRYPTION_KEY)
+encryption.aes.setIv(process.env.IV)
 ```
 
-The above is deprecated as it would couple the encryption of the JWT and the password together. If access to one of them needs to be revoked, it won't be possible to revoke it without affecting the other. 
+### Triple DES
 
-The recommended usage is to generate two different secret as follow:
+If you do not wish to use an initialization vector, you can use an older and less secure aldorithm called triple DES as follow:
 
 ```js
-const { jwt, pwd } = new Encryption({ jwtSecret: 'your-jwt-secret', pwdSecret: 'your-pwd-secret' })
+const Crypto = require('jwt-pwd')
+const { encryption } = new Crypto()
+
+const data = { firstName:'Nic', secret:1234 }
+
+const encryptionKey = encryption.des.setKey()
+
+console.log({
+	encryptionKey
+})
+
+const { cipher, encrypted } = encryption.des.encrypt(JSON.stringify(data))
+
+console.log({ cipher, encrypted })
+
+const decryptedData= JSON.parse(encryption.des.decrypt(encrypted))
+
+console.log(decryptedData)
 ```
 
 ## Authorizing HTTP Request With a JWT Token (Express)
@@ -126,8 +175,8 @@ const { jwt, pwd } = new Encryption({ jwtSecret: 'your-jwt-secret', pwdSecret: '
 The following piece of code assume that a JWT token containing claims `{ firstName:'Nic' }` is passed to each request in the `Authorization` header. If the request is successfully authenticated, a new `claims` property is added to the `req` object. That property contains all the claims. If, on the contrary, the request fails the authentication handler, then a 403 code is immediately returned.
 
 ```js
-const Encryption = require('jwt-pwd')
-const { bearerHandler } = new Encryption({ jwtSecret: 'your-jwt-secret' })
+const Crypto = require('jwt-pwd')
+const { bearerHandler } = new Crypto({ jwtSecret: 'your-jwt-secret' })
 
 app.get('/sayhi', bearerHandler(), (req,res) => res.status(200).send(`${req.claims.firstName} says hi.`))
 ```
@@ -145,8 +194,8 @@ app.get('/sayhi', bearerHandler(), (req,res) => res.status(200).send(`${req.clai
 The following piece of code assume that an API key is passed in each request in the header `x-api-key` (this header key is configurable). If the request is successfully authenticated, the rest of the code is executed. If, on the contrary, the request fails the authentication handler, then a 403 code is immediately returned.
 
 ```js
-const Encryption = require('jwt-pwd')
-const { apiKeyHandler } = new Encryption({ jwtSecret: 'your-jwt-secret' })
+const Crypto = require('jwt-pwd')
+const { apiKeyHandler } = new Crypto({ jwtSecret: 'your-jwt-secret' })
 
 app.get('/sayhello', apiKeyHandler({ key: 'x-api-key', value: 'your-api-key' }), (req,res) => res.status(200).send(`Hello`))
 ```
@@ -168,7 +217,7 @@ require('crypto').randomBytes(50).toString('base64')
 
 Alternatively, there are plenty of websites that generate random key such as [https://keygen.io/](https://keygen.io/) or [https://randomkeygen.com/](#https://randomkeygen.com/).
 
-### Private/public keys for asymmetric algorithm
+### Private/public keys for asymmetric algorithms
 
 Use OpenSSL to create a `.pem` file containing the private key. In this example, we'll use the ECDSA algorithm to generate a `key.pem` file:
 
@@ -187,19 +236,20 @@ openssl ec -in key.pem -pubout > key.pub
 To test your keys, use the following snippet:
 
 ```js
-const Encryption = require('jwt-pwd')
+const Crypto = require('jwt-pwd')
 const fs = require('fs')
 
 const alg = 'ES256'
 const privateKey = fs.readFileSync('./key.pem').toString()
 const publicKey = fs.readFileSync('./key.pub').toString()
-const { jwt } = new Encryption({ jwtSecret:privateKey })
+const { jwt } = new Crypto()
+jwt.setKey(privateKey)
 const claims = {
 	id:1,
 	email: 'nic@neap.co'
 }
 
-jwt.create(claims, { algorithm:alg }).then(token => jwt.validate(token, { cert:publicKey, algorithms:[alg] })).then(console.log)
+jwt.create(claims, { algorithm:alg }).then(token => jwt.validate(token, { key:publicKey, algorithms:[alg] })).then(console.log)
 ```
 
 ## Why bearer tokens stored in cookies are not prefixed with bearer?

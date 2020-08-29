@@ -7,30 +7,25 @@
 */
 
 /**
- * ENCRYPTION MANAGER
+ * CRYPTO MANAGER
  * ------------------
  * 
- * Use the most common encryption algorithm (md5, sha1, sha256, sha512, ripemd160) 
- * to encrypt data using typically a salt key. This is a typical way of managing 
+ * Use the most common hashing algorithms ('md5', 'sha1', 'sha256', 'sha512', 'ripemd160') 
+ * to hash data with a salt key. This is a typical way of managing 
  * password as well as validating them. The workflows are as follow:
  *
  * 		1. Storing a new password
  * 		-------------------------
  * 			a. Generate a new salt.
- * 			b. Encrypt the password with that salt.
- * 			c. Store both that encrypted password and the salt in the DB.
+ * 			b. Hash the password with that salt.
+ * 			c. Store both that hashed password and the salt in the DB.
  *    	
- *    	To make sure no users having access to the DB can decrypt those data, (which 
- *    	they theoretically could as they have both the encrypted password and the
- *    	salt), you can add to the salt randomly generated with 'randomHexSalt' another
- *    	secret key stored in your app. The salt stored in the DB is just half of it.
- *    	The other half is stored in your app. 
  *
  *		2. Validate the password
  *		------------------------
- *			a. Get the encrypted password and the salt from the DB
- *			b. Encrypt the provided password with the salt
- *			c. Compare that re-encrypted password with the stored encrypted one. 
+ *			a. Get the hashed password and the salt from the DB
+ *			b. Hash the provided password with the salt
+ *			c. Compare that re-hashed password with the stored hashed one. 
  */
 
 const hash = require('node_hash')
@@ -38,7 +33,6 @@ const crypto = require('crypto')
 const jwt = require('jsonwebtoken')
 const url = require('url')
 
-const utf8ToHex = s => s ? Buffer.from(s).toString('hex') : ''
 const hexToBuf = h => h ? Buffer.from(h, 'hex') : new Buffer(0)
 
 /**
@@ -50,26 +44,16 @@ const hexToBuf = h => h ? Buffer.from(h, 'hex') : new Buffer(0)
 const randomHexSalt = length => crypto.randomBytes(Math.ceil(length/2)).toString('hex') .slice(0,length)
 
 /**
- * Creates new hex salt from a specific string.
- *
- * @param  {String} str 	Seed string.
- * @param  {Number} length 	Length of the random salt.
- * @return {String}        	Salt
- */
-const stringToHexSalt = (str, length) => length ? utf8ToHex(str).slice(0,length) : utf8ToHex(str)
-
-/**
- * Encrypts data using some of the most classic encryption algorithm.
+ * Hashes salted data using some of the common hashing algorithm.
  * 
  * @param  {String} data     	Data
- * @param  {String} method   	md5, sha1, sha256, sha512, ripemd160
- * @param  {String} hexSalt1 	Required Hexadecimal salt
- * @param  {String} hexSalt2 	Optional second Hexadecimal salt (e.g. keep that one in your app)
- * @return {String}          	Encrypted data
+ * @param  {String} alg   		'md5', 'sha1', 'sha256', 'sha512', 'ripemd160'
+ * @param  {String} hexSalt 	Required Hexadecimal salt
+ * @return {String}          	Hashed data
  */
-const encryptData = (data, method, hexSalt1, hexSalt2) => {
-	const saltBuf = hexToBuf(hexSalt1 + (hexSalt2 || ''))
-	switch(method) {
+const hashSaltedData = (data, alg, hexSalt) => {
+	const saltBuf = hexToBuf(hexSalt)
+	switch(alg) {
 	case 'md5':
 		return hash.md5(data, saltBuf)
 	case 'sha1':
@@ -81,15 +65,15 @@ const encryptData = (data, method, hexSalt1, hexSalt2) => {
 	case 'ripemd160':
 		return hash.ripemd160(data, saltBuf)
 	default:
-		throw new Error(`Encryption method ${method} is not supported.`)
+		throw new Error(`Hash algorithm ${alg} is not supported.`)
 	}
 }
 
 
-const validateData = (data, encryptedData, method, hexSalt1, hexSalt2) => {
+const validateData = (data, hashedData, alg, hexSalt) => {
 	try {
-		const reEndryptedData = encryptData(data, method, hexSalt1, hexSalt2)
-		return encryptedData == reEndryptedData
+		const reHashedData = hashSaltedData(data, alg, hexSalt)
+		return hashedData == reHashedData
 	}
 	/*eslint-disable */
 	catch(err) {
@@ -144,46 +128,225 @@ const getBearerFromQuery = (qname,req) => {
 	}
 }
 
-const Encryption = function({ jwtSecret, pwdSecret }) {
-	if (!jwtSecret && !pwdSecret)
-		throw new Error('Missing required arguments. At least one of the following arguments must be specified: \'jwtSecret\' or \'pwdSecret\'')
+const ENCODING_OUTPUT_FORMAT = 'hex'
+const TRIPLE_DES = 'des-ede3'
+const AES = 'aes-256-cbc'
+/**
+ * Encrypts string using your own explicit algorithm or default back to AES ('aes-256-cbc') or Triple DES ('des-ede3') based on the
+ * data available. 
+ * 
+ * @param  {String} text		
+ * @param  {String} key					Encryption key.		
+ * @param  {String} options.cipher		
+ * @param  {String} options.iv			Initialization vector (required if 'optiions.cipher' is 'aes-256-cbc'
+ * @param  {String} options.format		Default 'hex'. Valid values: 'base64', 'hex', 'buffer'
+ * 
+ * @return {String} output.encrypted
+ * @return {String} output.iv
+ */
+const encrypt = (text, key, options) => {
+	let { iv, cipher, format=ENCODING_OUTPUT_FORMAT } = options || {}
+	const errorMsg = `Failed to encrypt data${cipher ? ` using the '${cipher}' cipher` : ''}`
+	if (!key)
+		throw new Error(`${errorMsg}. Missing required 'key'.`)
 
-	if (!pwdSecret)
-		pwdSecret = jwtSecret
-	if (!jwtSecret)
-		jwtSecret = pwdSecret
+	if (format != 'hex' && format != 'base64' && format != 'buffer')
+		throw new Error(`${errorMsg}. format '${format}' is not supported. Supported formats are: 'base64', 'hex', 'buffer'`)
 
-	const APP_PWD_SALT = stringToHexSalt(pwdSecret, 16)
+	let encryptionKey = key
+	if (!cipher) {
+		if (!iv) {
+			if (key.length < 24)
+				throw new Error(`${errorMsg}. Invalid key length. To default to Triple DES cipher, the key must be 24 characters long.`)
+
+			encryptionKey = key.slice(0,24)
+			cipher = TRIPLE_DES
+		} else {
+			if (key.length < 32)
+				throw new Error(`${errorMsg}. Invalid key length. To default to AES cipher, the key must be 32 characters long.`)
+			
+			encryptionKey = key.slice(0,32)
+			cipher = AES
+		}
+	}
+
+	if (cipher === AES) {
+		if (!iv)
+			throw new Error(`${errorMsg}. The ${AES} cipher requires an initialization vector ('iv' option).`)
+		if (iv.length != 16)
+			throw new Error(`${errorMsg}. The ${AES} requires an initialization vector ('iv' option) that is 16 characters long (current is ${iv.length})`)
+	}
+
+	try {
+		const cipherObj = crypto.createCipheriv(cipher, encryptionKey, iv||null)
+		const encryptedBuffer = Buffer.concat([cipherObj.update(text||''), cipherObj.final()])
+		return {
+			cipher,
+			key: encryptionKey,
+			encrypted: format == 'buffer' ? encryptedBuffer : encryptedBuffer.toString(format),
+			iv:iv||null,
+			format
+		}
+	} catch (err) {
+		throw new Error(`${errorMsg}. ${err.message}`)
+	}
+}
+
+/**
+ * Decrypts string using the 'aes-256-cbc' cipher. 
+ *
+ * @param  {String} text	
+ * @param  {String} key					Decryption key
+ * @param  {String} iv					Initialization vector
+ * @param  {String} options.cipher		Default 'aes-256-cbc'
+ * @param  {String} options.iv			Initialization vector (required if 'optiions.cipher' is 'aes-256-cbc'
+ * @param  {String} options.format		Default 'hex'. Valid values: 'base64', 'hex', 'buffer'
+ * 
+ * @return {String} decrypted
+ */
+const decrypt = (text, key, options) => {
+	let { cipher, iv, format=ENCODING_OUTPUT_FORMAT } = options || {}
+	cipher = cipher || AES
+	const errorMsg = `Failed to decript data using the '${cipher}' cipher`
+
+	if (text instanceof Buffer)
+		format = null
+
+	if (!key)
+		throw new Error(`${errorMsg}. Missing required 'key'.`)
+
+	if (cipher === AES) {
+		if (!iv)
+			throw new Error(`${errorMsg}. The ${AES} cipher requires an initialization vector ('iv' option).`)
+		if (iv.length != 16)
+			throw new Error(`${errorMsg}. The ${AES} requires an initialization vector ('iv' option) that is 16 characters long (current is ${iv.length})`)
+	}
+
+	try {
+		const decipher = crypto.createDecipheriv(cipher, key, iv||null)
+		const decrypted = Buffer.concat([decipher.update(text||'', format), decipher.final()]).toString()
+		return decrypted
+	} catch (err) {
+		throw new Error(`${errorMsg}. ${err.message}`)
+	}
+}
+
+/**
+ * Merges the input secrets into the a consistant set of keys. 
+ * 
+ * @param  {Object} secret        Object or string. If it exists and all the others don't, then its value(s) are used to set all the others.
+ * @param  {Object} jwtSecret     Object or string used to sign JWT
+ * @param  {Object} encryptSecret [description]
+ * @return {Object}                       [description]
+ */
+const _getSecrets = ({ secret, jwtSecret, encryptSecret }) => {
+	let privateJwtKey, publicJwtKey, privateEncryptKey, publicEncryptKey, iv
+	
+	const secretType = secret ? typeof(secret) : null
+	const jwtSecretType = jwtSecret ? typeof(jwtSecret) : null
+	const encryptSecretType = encryptSecret ? typeof(encryptSecret) : null
+
+	if (!jwtSecret && secret) {
+		if (secretType == 'string') {
+			privateJwtKey = secret
+			publicJwtKey = secret
+		} else if (secretType == 'object') {
+			privateJwtKey = secret.privateKey
+			publicJwtKey = secret.publicKey
+		}
+	} else if (jwtSecret) {
+		if (jwtSecretType == 'string') {
+			privateJwtKey = jwtSecret
+			publicJwtKey = jwtSecret
+		} else if (jwtSecretType == 'object') {
+			privateJwtKey = jwtSecret.privateKey
+			publicJwtKey = jwtSecret.publicKey
+		}
+	}
+
+	if (!encryptSecret && secret) {
+		if (secretType == 'string') {
+			privateEncryptKey = secret
+			publicEncryptKey = secret
+		} else if (secretType == 'object') {
+			privateEncryptKey = secret.privateKey
+			publicEncryptKey = secret.publicKey
+			iv = secret.iv
+		}
+	} else if (encryptSecret) {
+		if (encryptSecretType == 'string') {
+			privateEncryptKey = encryptSecret
+			publicEncryptKey = encryptSecret
+		} else if (encryptSecretType == 'object') {
+			privateEncryptKey = encryptSecret.privateKey
+			publicEncryptKey = encryptSecret.publicKey
+			iv = encryptSecret.iv
+		}
+	}
+
+	return { privateJwtKey, publicJwtKey, privateEncryptKey, publicEncryptKey, iv }
+}
+
+const generateAESkey = (format) => crypto.randomBytes(32).toString(format || 'hex').slice(0, 32)
+const generateAESiv = (format) => crypto.randomBytes(16).toString(format || 'hex').slice(0, 16)
+const generateDESkey = (format) => crypto.randomBytes(24).toString(format || 'hex').slice(0, 24)
+
+/**
+ * Creates a Crypto object. 
+ * 
+ * @param {String||Object} 	config.secret						key or object
+ * @param {String} 			config.secret.privateKey		
+ * @param {String} 			config.secret.publicKey		
+ * @param {String} 			config.secret.iv					Initialization vector. Only used for encryption when the algorithm is AES
+ * @param {String||Object} 	config.jwtSecret					key or object
+ * @param {String} 			config.jwtSecret.privateKey		
+ * @param {String} 			config.jwtSecret.publicKey		
+ * @param {String||Object} 	config.encryptSecret				key or object
+ * @param {String} 			config.encryptSecret.privateKey		
+ * @param {String} 			config.encryptSecret.publicKey		
+ * @param {String} 			config.encryptSecret.iv				Initialization vector. Only used for encryption when the algorithm is AES
+ *
+ * @return {Crypto}			crypto
+ */
+const Crypto = function(config) {
+	const { secret, jwtSecret, encryptSecret } = config || {}
+	let { privateJwtKey, publicJwtKey, privateEncryptKey, publicEncryptKey, iv } = _getSecrets({ secret, jwtSecret, encryptSecret })
 	
 	this.pwd = {
 		/**
-		 * Determines whether the password matches the encrypted password in the DB
+		 * Determines whether the password matches the hashed password in the DB
 		 * 
-		 * @param  {String} password          	Password sent from the client
-		 * @param  {String} encryptedPassword 	Password stored in the DB
-		 * @param  {String} salt              	Salt stored in the DB
-		 * @param  {String} method  			e.g., md5, sha1, sha256, sha512, ripemd160
+		 * @param  {String} password          		Password sent from the client
+		 * @param  {String} hashedSaltedPassword 	Password stored in the DB
+		 * @param  {String} salt              		Salt stored in the DB
+		 * @param  {String} alg  					Default is 'sha256'. Supported values: 'md5', 'sha1', 'sha256', 'sha512', 'ripemd160'
 		 * @return {Boolean}                  
 		 */
-		validate: ({ password, encryptedPassword, salt, method }) => validateData(password, encryptedPassword, method, salt, APP_PWD_SALT),
+		validate: ({ password, hashedSaltedPassword, salt, alg='sha256' }) => validateData(password, hashedSaltedPassword, alg, salt),
 		/**
-		 * Encrypts a password using a encryption method. 
+		 * Hashes a salted password using the hash alg. 
 		 * 
 		 * @param  {String} password    				
-		 * @param  {String} method 						e.g., md5, sha1, sha256, sha512, ripemd160
+		 * @param  {String} alg 						Default is 'sha256'. Supported values: 'md5', 'sha1', 'sha256', 'sha512', 'ripemd160'
 		 * @return {String} output.salt 				
-		 * @return {String} output.encryptedPassword 	
+		 * @return {String} output.hashedSaltedPassword 	
 		 */
-		encrypt: ({ password, method }) => {
+		hashAndSalt: ({ password, alg='sha256' }) => {
 			const salt = randomHexSalt(16)
 			return {
 				salt,
-				encryptedPassword: encryptData(password, method, salt, APP_PWD_SALT) 
+				hashedSaltedPassword: hashSaltedData(password, alg, salt) 
 			}
 		}
 	}
 
 	const _jwt = {
+		setKey: (key, options) => {
+			const { format, length } = options || {}
+			privateJwtKey = key || crypto.randomBytes(length || 50).toString(format || 'base64')
+			return privateJwtKey
+		},
+		getKey: () => privateJwtKey,
 		/**
 		 * Creates a JWT token
 		 * 
@@ -191,31 +354,40 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 		 * @param  {String}  options.algorithm	Default: 'RS256'. Supported: HS256, HS384, HS512, RS256, RS384, RS512, PS256, PS384, PS512, ES256, ES384, ES512
 		 * @return {Promise}        			Promise resolving to a string.
 		 */
-		create: (claims={}, options) => new Promise((onSuccess, onFailure) => jwt.sign(claims, jwtSecret, options, (err, token) => {
-			if (err)
-				onFailure(err)
-			else
-				onSuccess(token)
-		})),
+		create: (claims={}, options) => new Promise((onSuccess, onFailure) => {
+			if (!privateJwtKey)
+				onFailure(new Error('Failed to create JWT. Missing required private key. Please use one of the following constructors to instantiate your Crypto object: new Crypto({ secret:\'priv-key\' }), new Crypto({ secret: { privateKey:\'priv-key\' } }),new Crypto({ jwtSecret:\'priv-key\' }), new Crypto({ jwtSecret: { privateKey:\'priv-key\' } }).'))
+			jwt.sign(claims, privateJwtKey, options, (err, token) => {
+				if (err)
+					onFailure(err)
+				else
+					onSuccess(token)
+			})
+		}),
 
 		/**
 		 * Verifies whether or not the token is valid based on whether it can be decrypted or not. 
 		 * 
 		 * @param  {String} 	token 
+		 * @param  {String}     options.key			Public key to decrypt the JWT.
 		 * @param  {[String]}   options.algorithms 
 		 * @return {Promise}    Promise resolving to a Claims object
 		 */
-		validate: (token='', options) => {
-			const { cert:c, algorithms } = options || {}
-			const cert = c || jwtSecret
+		validate: (token='', options) => new Promise((onSuccess, onFailure) => {
+			const { key, algorithms } = options || {}
+			const cert = key || publicJwtKey || privateJwtKey
 			const opts = algorithms ? { algorithms } : {}
-			return new Promise((onSuccess, onFailure) => jwt.verify(token, cert, opts, (err, claims) => {
+
+			if (!cert)
+				onFailure(new Error('Failed to verify JWT. Missing required \'key\'/'))
+
+			jwt.verify(token, cert, opts, (err, claims) => {
 				if (err)
 					onFailure(err)
 				else
 					onSuccess(claims)
-			}))
-		},
+			})
+		}),
 
 		/**
 		 * Decodes a JWT. 
@@ -225,6 +397,91 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 		 * @return {Object}
 		 */
 		decode: (token, options) => jwt.decode(token, options)
+	}
+
+	this.encryption = {
+		aes: {
+			setKey: key => {
+				privateEncryptKey = key || generateAESkey()
+				return privateEncryptKey
+			},
+			getKey: () => privateEncryptKey,
+			setIv: () => {
+				iv = generateAESiv()
+				return iv
+			},
+			generateKey: generateAESkey,
+			generateIv: generateAESiv,
+			/**
+			 * Encrypts string using the 'aes-256-cbc' cipher. 
+			 * 
+			 * @param  {String} text				
+			 * @param  {String} options.format		Default 'hex'. Valid values: 'base64', 'hex', 'buffer'
+			 * 
+			 * @return {String} output.encrypted
+			 * @return {String} output.iv
+			 */
+			encrypt: (text, options={}) => encrypt(text, privateEncryptKey, { ...options, iv, cipher:AES }),
+			/**
+			 * Decrypts string using the 'aes-256-cbc' cipher. 
+			 *
+			 * @param  {String} text	
+			 * @param  {String} options.key			
+			 * @param  {String} options.format		Default 'hex'. Valid values: 'base64', 'hex', 'buffer'
+			 * 
+			 * @return {String} decrypted
+			 */
+			decrypt: (text, options={}) => decrypt(text, options.key || publicEncryptKey || privateEncryptKey, { ...options, iv, cipher:AES })
+		},
+		des: {
+			setKey: key => {
+				privateEncryptKey = key || generateDESkey()
+				return privateEncryptKey
+			},
+			generateKey: generateDESkey,
+			/**
+			 * Encrypts string using the 'aes-256-cbc' cipher. 
+			 * 
+			 * @param  {String} text				
+			 * @param  {String} options.format		Default 'hex'. Valid values: 'base64', 'hex', 'buffer'
+			 * 
+			 * @return {String} output.encrypted
+			 * @return {String} output.iv
+			 */
+			encrypt: (text, options={}) => encrypt(text, privateEncryptKey, { ...options, iv, cipher:TRIPLE_DES }),
+			/**
+			 * Decrypts string using the 'aes-256-cbc' cipher. 
+			 *
+			 * @param  {String} text	
+			 * @param  {String} options.key			
+			 * @param  {String} options.format		Default 'hex'. Valid values: 'base64', 'hex', 'buffer'
+			 * 
+			 * @return {String} decrypted
+			 */
+			decrypt: (text, options={}) => decrypt(text, options.key || publicEncryptKey || privateEncryptKey, { ...options, iv, cipher:TRIPLE_DES })
+		},
+		/**
+		 * Encrypts string using the most appropriate cipher. 
+		 * 
+		 * @param  {String} text				
+		 * @param  {String} options.cipher		
+		 * @param  {String} options.format		Default 'hex'. Valid values: 'base64', 'hex', 'buffer'
+		 * 
+		 * @return {String} output.encrypted
+		 * @return {String} output.iv
+		 */
+		encrypt: (text, options={}) => encrypt(text, privateEncryptKey, { ...options, iv }),
+		/**
+		 * Decrypts string using the most appropriate cipher. 
+		 *
+		 * @param  {String} text	
+		 * @param  {String} options.cipher		Default 'aes-256-cbc'
+		 * @param  {String} options.key			
+		 * @param  {String} options.format		Default 'hex'. Valid values: 'base64', 'hex', 'buffer'
+		 * 
+		 * @return {String} decrypted
+		 */
+		decrypt: (text, options={}) => decrypt(text, options.key || publicEncryptKey || privateEncryptKey, { ...options, iv })
 	}
 
 	this.jwt = _jwt
@@ -279,7 +536,7 @@ const Encryption = function({ jwtSecret, pwdSecret }) {
 	return this
 }
 
-module.exports = Encryption
+module.exports = Crypto
 
 
 
