@@ -5,7 +5,7 @@ __*jwt-pwd*__ is a tiny crypto helper that helps building JWT (JSON Web Token, p
 
 > * [Install](#install) 
 > * [Getting started](#getting-started) 
-> 	- [Generating & validating JWTs](#generating--validating-a-jwts) 
+> 	- [Generating & validating JWTs](#generating--validating-jwts) 
 > 	- [Hashing and salting password](#hashing-and-salting-password) 
 >	- [Encrypting data](#encrypting-data)
 >		- [AES (recommended)](#aes-recommended)
