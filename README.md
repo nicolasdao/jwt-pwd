@@ -219,13 +219,13 @@ Alternatively, there are plenty of websites that generate random key such as [ht
 
 ### Private/public keys for asymmetric algorithms
 
-Use OpenSSL to create a `.pem` file containing the private key. In this example, we'll use the ECDSA algorithm to generate a `key.pem` file:
+Use OpenSSL to create a `.pem` file containing the private key. In this example, we'll use the ECDSA algorithm (this is more modern algorithm that the usual RSA) to generate a `key.pem` file:
 
 ```
 openssl ecparam -genkey -name secp256k1 -noout -out key.pem
 ```
 
-> The list of algorithms can for ECDSA can be listed with `openssl ecparam -list_curves`
+> To get a list of all the available ECDSA algorithms use this command: `openssl ecparam -list_curves`
 
 Then generate a public key for this private key:
 
