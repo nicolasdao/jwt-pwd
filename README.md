@@ -13,7 +13,11 @@ __*jwt-pwd*__ is a tiny crypto helper that helps building JWT (JSON Web Token, p
 > 	- [Authorizing HTTP Request With a JWT Token (Express)](#authorizing-http-request-with-a-jwt-token-express) 
 > 	- [Other Utils](#other-utils) 
 > * [FAQ](#faq) 
-> 	- [How to generate a secret?](#how-to-generate-a-secret) 
+> 	- [How to generate a keys?](#how-to-generate-keys) 
+>		- [Single key for symmetric algorithm](#single-key-for-symmetric-algorithm)
+>		- [Private/public keys for asymmetric algorithms?](#privatepublic-keys-for-asymmetric-algorithms)
+>			- [RSA key pair](#rsa-key-pair)
+>			- [ECDSA key pair](#ecdsa-key-pair)
 >	- [Why bearer tokens stored in cookies are not prefixed with bearer?](#why-bearer-tokens-stored-in-cookies-are-not-prefixed-with-bearer)
 > * [About Neap](#this-is-what-we-re-up-to)
 > * [License](#license)
@@ -53,11 +57,11 @@ jwt.create(claims)
 
 ```
 
-> WARNING: If the algorithm uses assymetric keys, the public key has to be passed as follow to validate the token:
+> WARNING: If the algorithm uses asymmetric keys, the public key has to be passed as follow to validate the token:
 >	```js
 >	jwt.validate(token, { key:publicKey })
 >	```
-> To learn more about using private/public keys, please refer to the example in the [Private/public keys for asymmetric algorithms](#privatepublic-keys-for-asymmetric-algorithms) section.
+> To learn more about using private/public keys, please refer to the example in the [Private/public keys for asymmetric algorithms?](#privatepublic-keys-for-asymmetric-algorithms) section.
 
 To change the default algorithm, pass an option parameter as follow:
 
@@ -70,11 +74,11 @@ The supported cryptographic algorithms are:
 - `HS384`: HMAC signature with SHA-384 (symmetric key)
 - `HS512`: HMAC signature with SHA-512 (symmetric key) 
 - `RS256`: RSA signature with SHA-256 (asymmetric key)
-- `RS384`: RSA signature with SHA-256 (asymmetric key) 
-- `RS512`: RSA signature with SHA-256 (asymmetric key) 
+- `RS384`: RSA signature with SHA-384 (asymmetric key) 
+- `RS512`: RSA signature with SHA-512 (asymmetric key) 
 - `PS256`: RSASSA-PSS signature with SHA-256 (asymmetric key) 
-- `PS384`: RSASSA-PSS signature with SHA-256 (asymmetric key) 
-- `PS512`: RSASSA-PSS signature with SHA-256 (asymmetric key) 
+- `PS384`: RSASSA-PSS signature with SHA-384 (asymmetric key) 
+- `PS512`: RSASSA-PSS signature with SHA-512 (asymmetric key) 
 - `ES256`: ECDSA signature with SHA-256 (asymmetric key) 
 - `ES384`: ECDSA signature with SHA-384 (asymmetric key) 
 - `ES512`: ECDSA signature with SHA-512 (asymmetric key) 
@@ -84,7 +88,7 @@ The key concept you must understand when it comes to choosing one of those algor
 - __Asymmetric algorithm__: The algorithm is using a private/public key to sign the token. The public key can be shared with the rest of the world so it can verify that the token has not been tampered. Because the private key is kept secret, there is very little risk of compromising the way the token's integrity .
 - __Symmetric algorithm__: The algorithm is using a single key to sign the token. This means that if a third-party wishes to verify that the token has not been tampered, the two parties need to find a safe way to share the single key, which can adds complexity. 
 
-Choose an asymmetric algorithm if you must let clients verifying the JWT without your intervention, othersise choose a symmetric algorithm as they are simpler to start with. Once you've choosen which type of algorithm fits your requirements, choosing a specific algorithm depends on the types of signature your ecosystem supports. If the JWT travels throughout multiple existing systems that must verify its integrity, then do some research on those systems to see what is the most secured common denominator between all those systems (i.e., the most secured assymetric algorithm they all support), and then choose that one. If you are not constrained by third-party systems, and still need an asymmetric algorithm, _ES256_ is a good compromise between security and adoption. To learn more about generating keys, please refer to the [How to generate a secret?](#how-to-generate-a-secret) section.
+Choose an asymmetric algorithm if you must let clients verifying the JWT without your intervention, othersise choose a symmetric algorithm as they are simpler to start with. Once you've choosen which type of algorithm fits your requirements, choosing a specific algorithm depends on the types of signature your ecosystem supports. If the JWT travels throughout multiple existing systems that must verify its integrity, then do some research on those systems to see what is the most secured common denominator between all those systems (i.e., the most secured asymmetric algorithm they all support), and then choose that one. If you are not constrained by third-party systems, and still need an asymmetric algorithm, _ES256_ is a good compromise between security and adoption. To learn more about generating keys, please refer to the [How to generate a keys?](#how-to-generate-keys) section.
 
 ## Hashing and salting password
 
@@ -110,13 +114,17 @@ console.log('Password validation result: ', pwd.validate({ password: '123', hash
 ## Encrypting data
 ### AES (recommended)
 
+> The exact cipher is `aes-256-cbc`.
+
 ```js
 const Crypto = require('jwt-pwd')
 const { encryption } = new Crypto()
 
 const data = { firstName:'Nic', secret:1234 }
 
+// Randomly creates and sets the AES private key.
 const encryptionKey = encryption.aes.setKey()
+// Randomly creates and sets the initialization vector.
 const initializationVector = encryption.aes.setIv()
 
 console.log({
@@ -155,6 +163,7 @@ const { encryption } = new Crypto()
 
 const data = { firstName:'Nic', secret:1234 }
 
+// Randomly creates and sets the DES private key.
 const encryptionKey = encryption.des.setKey()
 
 console.log({
@@ -203,9 +212,9 @@ app.get('/sayhello', apiKeyHandler({ key: 'x-api-key', value: 'your-api-key' }),
 > NOTE: In this case, the `jwtSecret` is not involved in any encryption or validation. The `apiKeyHandler` is just a handy helper.
 
 # FAQ
-## How to generate a secret?
+## How to generate a keys?
 
-The method to generate a secret depends on your business requirements. If you need to let third parties to verify that your JWT has not been tampered, then you need to use private/public key with an asymmetric algorithm so you can safely share the public key. If on the other hand signing your JWT is a one-way street, you can use a symmetric algorithm and generate a single secret.
+The method to generate a keys or secrets depends on your business requirements. If you need to let third parties verify that JWTs have not been tampered, then you need an asymmetric algorithm so you can safely share the public key. If on the other hand signing your JWT is a one-way street, you can use a symmetric algorithm and generate a single secret.
 
 ### Single key for symmetric algorithm
 
@@ -217,31 +226,32 @@ require('crypto').randomBytes(50).toString('base64')
 
 Alternatively, there are plenty of websites that generate random key such as [https://keygen.io/](https://keygen.io/) or [https://randomkeygen.com/](#https://randomkeygen.com/).
 
-### Private/public keys for asymmetric algorithms
+### Private/public keys for asymmetric algorithms?
 
-Use OpenSSL to create a `.pem` file containing the private key. In this example, we'll use the ECDSA algorithm (this is more modern algorithm that the usual RSA) to generate a `key.pem` file:
+Conceptually, those algorithms require:
+1. __`Cipher type`__: Cyber security needs to constantly adapt to new threats. As of 2020, the most commonly used family of cipher on the internet is RSA but it is slowly being replaced by ECDSA.
+2. __`Key pair`__: A key pair is made of a private and a public key that meet certain mathematical criteria. Those criteria depends on the type of cipher used. For RSA, the keypair strength is associated with their length, whereas ECDSA uses curves. Those keys are used for signing and encrypting messages. Signature is done with the private key so that the owners of the public key can verify the message was not tampered and that it comes from the owner of the private key. Encryption is done with the public key so that only the owner of the private key can read the message.
+3. __`Hashing function`__. With the keypairs generated in the previous step, the message can be signed or/and encrypted using different hashing function. This is typically a SHA type. As of 2020, the most commonly supported SHA is SHA-256. 
 
+#### RSA key pair
+
+1. Create a private RSA key:
 ```
-openssl ecparam -genkey -name secp256k1 -noout -out key.pem
+openssl genrsa -out private.pem 2048
 ```
-
-> To get a list of all the available ECDSA algorithms use this command: `openssl ecparam -list_curves`
-
-Then generate a public key for this private key:
-
+> With RSA, the key length is what makes it harder to crack. As of 2020, the recommended length is 2048.
+2. Create a public RSA key:
 ```
-openssl ec -in key.pem -pubout > key.pub
+openssl rsa -in private.pem -outform PEM -pubout -out public.pem
 ```
-
-To test your keys, use the following snippet:
-
+3. Test the algorithm with one of the hashing function (e.g., RS256, RS384, RS512):
 ```js
 const Crypto = require('jwt-pwd')
 const fs = require('fs')
 
-const alg = 'ES256'
-const privateKey = fs.readFileSync('./key.pem').toString()
-const publicKey = fs.readFileSync('./key.pub').toString()
+const alg = 'RS256'
+const privateKey = fs.readFileSync('./private.pem').toString()
+const publicKey = fs.readFileSync('./public.pem').toString()
 const { jwt } = new Crypto()
 jwt.setKey(privateKey)
 const claims = {
@@ -251,6 +261,36 @@ const claims = {
 
 jwt.create(claims, { algorithm:alg }).then(token => jwt.validate(token, { key:publicKey, algorithms:[alg] })).then(console.log)
 ```
+
+#### ECDSA key pair
+
+1. Create a private ECDSA key:
+```
+openssl ecparam -genkey -name secp256k1 -noout -out private.pem
+```
+> With ECDSA, the curve is what makes it harder to crack. As of 2020, a widely accepted curve is _secp256k1_. To get a list of all the available ECDSA algorithms use this command: `openssl ecparam -list_curves`
+2. Create a public RSA key:
+```
+openssl ec -in private.pem -pubout > public.pem
+```
+3. Test the algorithm with one of the hashing function (e.g., ES256, ES384, ES512):
+```js
+const Crypto = require('jwt-pwd')
+const fs = require('fs')
+
+const alg = 'ES256'
+const privateKey = fs.readFileSync('./private.pem').toString()
+const publicKey = fs.readFileSync('./public.pem').toString()
+const { jwt } = new Crypto()
+jwt.setKey(privateKey)
+const claims = {
+	id:1,
+	email: 'nic@neap.co'
+}
+
+jwt.create(claims, { algorithm:alg }).then(token => jwt.validate(token, { key:publicKey, algorithms:[alg] })).then(console.log)
+```
+
 
 ## Why bearer tokens stored in cookies are not prefixed with bearer?
 
