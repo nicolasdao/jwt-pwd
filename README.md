@@ -212,7 +212,7 @@ app.get('/sayhello', apiKeyHandler({ key: 'x-api-key', value: 'your-api-key' }),
 > NOTE: In this case, the `jwtSecret` is not involved in any encryption or validation. The `apiKeyHandler` is just a handy helper.
 
 # FAQ
-## How to generate a keys?
+## How to generate keys?
 
 The method to generate a keys or secrets depends on your business requirements. If you need to let third parties verify that JWTs have not been tampered, then you need an asymmetric algorithm so you can safely share the public key. If on the other hand signing your JWT is a one-way street, you can use a symmetric algorithm and generate a single secret.
 
