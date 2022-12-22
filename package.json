@@ -29,7 +29,7 @@
     "standard-version": "^9.0.0"
   },
   "dependencies": {
-    "jsonwebtoken": "^8.5.0",
+    "jsonwebtoken": "^9.0.0",
     "node_hash": "^0.2.0"
   }
 }
